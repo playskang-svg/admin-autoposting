@@ -29,7 +29,7 @@ export const PostingQueue: React.FC<PostingQueueProps> = ({
   onResetToRecommended,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | QueueStatus>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | QueueStatus>('ready');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Auto-publish logic

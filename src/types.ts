@@ -1,4 +1,5 @@
 export type QueueStatus = 'ready' | 'queued' | 'scheduled' | 'published' | 'draft';
+export type AppTab = 'summary' | 'queue' | 'studio' | 'github' | 'japan' | 'pipeline';
 export type CompetitionLevel = '상' | '중' | '하';
 export type SearchIntent = '정보성' | '상업성' | '탐색형' | '거래형';
 

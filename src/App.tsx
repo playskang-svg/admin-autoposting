@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Header, AppTab } from './components/Header';
-import { PipelineFlowchart } from './components/PipelineFlowchart';
 import { SummaryDashboard } from './components/SummaryDashboard';
 import { AgentStudio } from './components/AgentStudio';
 import { PostingQueue } from './components/PostingQueue';
 import { GitHubActionsManager } from './components/GitHubActionsManager';
 import { JapanSiteShowcase } from './components/JapanSiteShowcase';
+import { TargetSiteQuickDeployPanel } from './components/TargetSiteQuickDeployPanel';
 import { PipelineGuide } from './components/PipelineGuide';
 import { QueueDetailModal } from './components/QueueDetailModal';
 import { AddWebsiteModal } from './components/AddWebsiteModal';
@@ -20,7 +20,7 @@ const WEBSITES_STORAGE_KEY = 'noluga_target_websites_v1';
 const ACTIVE_WEBSITE_STORAGE_KEY = 'noluga_active_website_id_v1';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<AppTab>('flowchart');
+  const [activeTab, setActiveTab] = useState<AppTab>('summary');
 
   // Target Websites State (for multi-site management)
   const [targetWebsites, setTargetWebsites] = useState<TargetWebsite[]>(() => {
@@ -266,36 +266,33 @@ export default function App() {
       />
 
       <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {activeTab === 'flowchart' && (
-          <PipelineFlowchart
-            queueItems={queueItems}
-            activeWebsite={activeWebsite}
-            targetWebsites={targetWebsites}
-            onSelectWebsite={handleSelectWebsite}
-            onOpenAddWebsiteModal={() => setIsAddWebsiteModalOpen(true)}
-            onNavigateToStudio={() => setActiveTab('studio')}
-            onNavigateToQueue={handleNavigateToQueue}
-            onNavigateToDeploy={handleOpenGitHub}
-            onUpdateStatus={handleUpdateStatus}
-            onUpdateItem={handleUpdateItem}
-            onSelectItem={handleSelectItem}
-            onAddNewPostToSite={handlePostGenerated}
-          />
-        )}
-
         {activeTab === 'summary' && (
-          <SummaryDashboard
-            queueItems={queueItems}
-            onSelectItem={handleSelectItem}
-            onNavigateToStudio={() => setActiveTab('studio')}
-            onNavigateToQueue={handleNavigateToQueue}
-            onOpenGitHubModal={handleOpenGitHub}
-            onResetToRecommended={handleResetToRecommended}
-            onExportAllJson={handleExportAllJson}
-            activeWebsite={activeWebsite}
-            targetWebsites={targetWebsites}
-            onNavigateToFlowchart={() => setActiveTab('flowchart')}
-          />
+          <div className="space-y-6">
+            <TargetSiteQuickDeployPanel
+              queueItems={queueItems}
+              activeWebsite={activeWebsite}
+              targetWebsites={targetWebsites}
+              onSelectWebsite={handleSelectWebsite}
+              onUpdateStatus={handleUpdateStatus}
+              onUpdateItem={handleUpdateItem}
+              onSelectItem={handleSelectItem}
+              onNavigateToStudio={() => setActiveTab('studio')}
+              onNavigateToDeploy={handleOpenGitHub}
+              onAddNewPostToSite={handlePostGenerated}
+              onDeleteItem={handleDeleteItem}
+            />
+            <SummaryDashboard
+              queueItems={queueItems}
+              onSelectItem={handleSelectItem}
+              onNavigateToStudio={() => setActiveTab('studio')}
+              onNavigateToQueue={handleNavigateToQueue}
+              onOpenGitHubModal={handleOpenGitHub}
+              onResetToRecommended={handleResetToRecommended}
+              onExportAllJson={handleExportAllJson}
+              activeWebsite={activeWebsite}
+              targetWebsites={targetWebsites}
+            />
+          </div>
         )}
 
         {activeTab === 'queue' && (

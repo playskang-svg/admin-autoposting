@@ -114,17 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Navigation Tabs - Minimal 4-5 tabs */}
           <nav className="flex items-center gap-1 rounded-xl bg-stone-100 p-1 text-xs">
-            <button
-              onClick={() => setActiveTab('flowchart')}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium transition-all ${
-                activeTab === 'flowchart'
-                  ? 'bg-stone-900 text-white font-bold shadow-xs'
-                  : 'text-stone-600 hover:text-stone-900'
-              }`}
-            >
-              <SlidersHorizontal className="h-3.5 w-3.5" />
-              <span>파이프라인</span>
-            </button>
+
 
             <button
               onClick={() => setActiveTab('queue')}

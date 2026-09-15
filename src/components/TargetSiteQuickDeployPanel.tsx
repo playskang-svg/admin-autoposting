@@ -17,6 +17,7 @@ import {
   Globe,
   Github,
   Eye,
+  Trash2,
 } from 'lucide-react';
 import { DashboardQueueItem, QueueStatus, TargetWebsite } from '../types';
 
@@ -31,6 +32,7 @@ interface TargetSiteQuickDeployPanelProps {
   onNavigateToStudio: () => void;
   onNavigateToDeploy: (item?: DashboardQueueItem) => void;
   onAddNewPostToSite?: (newPost: DashboardQueueItem) => void;
+  onDeleteItem?: (id: string) => void;
 }
 
 export type UnitFilter = 'all' | 'ready' | 'draft' | 'published';
@@ -130,6 +132,7 @@ export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProp
   onNavigateToStudio,
   onNavigateToDeploy,
   onAddNewPostToSite,
+  onDeleteItem,
 }) => {
   // Filter state for units
   const [selectedUnit, setSelectedUnit] = useState<UnitFilter>('ready');
@@ -138,6 +141,7 @@ export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProp
   const [showAllSites, setShowAllSites] = useState(false);
   const [deployingId, setDeployingId] = useState<string | null>(null);
   const [batchDeploying, setBatchDeploying] = useState(false);
+  const [isGeneratingForSite, setIsGeneratingForSite] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
 
   const showToast = (text: string, type: 'success' | 'info' = 'success') => {
@@ -327,6 +331,7 @@ export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProp
 
   // Quick generator for sites that have 0 posts (Generates and Auto-Deploys)
   const handleGenerateSampleForSite = async () => {
+    setIsGeneratingForSite(true);
     try {
       showToast(`'${activeWebsite.name}' 타깃 맞춤 대기글 생성 중...`, 'info');
       
@@ -367,6 +372,8 @@ export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProp
     } catch (error: any) {
       console.error(error);
       alert(`생성 및 배포 실패: ${error.message}`);
+    } finally {
+      setIsGeneratingForSite(false);
     }
   };
 
@@ -486,21 +493,39 @@ export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProp
             </button>
           </div>
 
-          {/* 1-Click Batch Deploy Button */}
-          <button
-            id="btn-batch-deploy"
-            onClick={handleBatchDeploy}
-            disabled={batchDeploying || readyCount === 0}
-            className="flex items-center gap-2 rounded-xl bg-stone-950 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-950 transition-all cursor-pointer"
-            title="현재 사이트의 발행 대기(Ready) 상태인 모든 글을 원클릭으로 일괄 배포합니다"
-          >
-            {batchDeploying ? (
-              <RefreshCw className="h-3.5 w-3.5 animate-spin text-amber-300" />
-            ) : (
-              <Sparkles className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
-            )}
-            <span>대기글 일괄 원클릭 배포 ({readyCount}건)</span>
-          </button>
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {/* Quick Single Generate Button */}
+            <button
+              onClick={handleGenerateSampleForSite}
+              disabled={isGeneratingForSite}
+              className="flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3.5 py-2 text-xs font-bold text-stone-700 shadow-xs hover:bg-stone-50 disabled:opacity-40 transition-all cursor-pointer"
+              title="새로운 키워드를 수집하여 1건의 글을 자동 생성 후 즉시 배포합니다"
+            >
+              {isGeneratingForSite ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-stone-500" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5 text-stone-500" />
+              )}
+              <span>{isGeneratingForSite ? '수집 및 AI 배포중...' : '글 1건 자동생성'}</span>
+            </button>
+
+            {/* 1-Click Batch Deploy Button */}
+            <button
+              id="btn-batch-deploy"
+              onClick={handleBatchDeploy}
+              disabled={batchDeploying || readyCount === 0 || isGeneratingForSite}
+              className="flex items-center gap-2 rounded-xl bg-stone-950 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-stone-800 disabled:opacity-40 disabled:hover:bg-stone-950 transition-all cursor-pointer"
+              title="현재 사이트의 발행 대기(Ready) 상태인 모든 글을 원클릭으로 일괄 배포합니다"
+            >
+              {batchDeploying ? (
+                <RefreshCw className="h-3.5 w-3.5 animate-spin text-amber-300" />
+              ) : (
+                <Send className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+              )}
+              <span>대기글 일괄 원클릭 배포 ({readyCount}건)</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -805,9 +830,20 @@ export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProp
                     {!isReady && !isPublished && (
                       <button
                         onClick={() => onUpdateStatus(item.id, 'ready')}
-                        className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors"
+                        className="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-colors cursor-pointer"
                       >
                         대기로 전환
+                      </button>
+                    )}
+
+                    {/* Delete Button */}
+                    {onDeleteItem && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onDeleteItem(item.id); }}
+                        className="rounded-xl border border-stone-200 bg-white p-1.5 text-stone-400 hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                        title="이 항목을 삭제합니다"
+                      >
+                        <Trash2 className="h-4 w-4" />
                       </button>
                     )}
 
