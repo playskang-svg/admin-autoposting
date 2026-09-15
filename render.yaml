@@ -9,4 +9,4 @@ services:
         value: 20
       - key: GEMINI_API_KEY
         sync: false
-# redeploy trigger: 2026-09-15
+# redeploy trigger: 2026-09-15T10:50
