@@ -48,6 +48,9 @@ const LiveStatusLink: React.FC<{ url: string }> = ({ url }) => {
   useEffect(() => {
     let isMounted = true;
     
+    // URL이 변경되었을 수 있으므로 초기 상태를 checking으로 설정
+    setStatus('checking');
+
     const checkUrl = async () => {
       if (!isMounted) return;
       try {
@@ -71,21 +74,23 @@ const LiveStatusLink: React.FC<{ url: string }> = ({ url }) => {
     };
 
     // Initial check
-    setStatus('checking');
     checkUrl();
 
-    // Poll every 10 seconds if not live yet
+    // Poll every 10 seconds
     const intervalId = setInterval(() => {
-      if (status !== 'live') {
-        checkUrl();
-      }
+      setStatus(prev => {
+        if (prev !== 'live') {
+          checkUrl();
+        }
+        return prev;
+      });
     }, 10000);
 
     return () => { 
       isMounted = false; 
       clearInterval(intervalId);
     };
-  }, [url, status]);
+  }, [url]);
 
   if (status === 'checking') {
     return (
