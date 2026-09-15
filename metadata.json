@@ -1,0 +1,6 @@
+{
+  "name": "SEO Content Agent & Posting Automation",
+  "description": "Multi-site automated content & publishing operations console synchronized with remote links from adbles-hq-dashboard.playskang.workers.dev, featuring pipeline flowchart, GitHub Contents API commit, and Firebase Hosting deployment.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
