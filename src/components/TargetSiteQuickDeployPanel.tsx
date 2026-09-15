@@ -35,6 +35,85 @@ interface TargetSiteQuickDeployPanelProps {
 
 export type UnitFilter = 'all' | 'ready' | 'draft' | 'published';
 
+const LiveStatusLink: React.FC<{ url: string; className?: string }> = ({ url, className }) => {
+  const [status, setStatus] = React.useState<'checking' | 'live' | 'error'>('checking');
+
+  React.useEffect(() => {
+    let isMounted = true;
+    
+    const checkUrl = async () => {
+      if (!isMounted) return;
+      try {
+        const res = await fetch('/api/check-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json();
+        if (!isMounted) return;
+        
+        if (data.isOk) {
+          setStatus('live');
+        } else {
+          setStatus('error');
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setStatus('error');
+      }
+    };
+
+    // Initial check
+    setStatus('checking');
+    checkUrl();
+
+    // Poll every 10 seconds if not live yet
+    const intervalId = setInterval(() => {
+      if (status !== 'live') {
+        checkUrl();
+      }
+    }, 10000);
+
+    return () => { 
+      isMounted = false; 
+      clearInterval(intervalId);
+    };
+  }, [url, status]);
+
+  if (status === 'checking') {
+    return (
+      <span className={`flex items-center gap-1 rounded-xl bg-stone-100 border border-stone-200 px-3 py-1.5 text-xs font-bold text-stone-500 cursor-not-allowed ${className || ''}`}>
+        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+        <span>확인중...</span>
+      </span>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <span
+        className={`flex items-center gap-1 rounded-xl bg-amber-50 border border-amber-200 px-3 py-1.5 text-[11px] font-bold text-amber-700 cursor-wait ${className || ''}`}
+        title="CDN 배포가 진행 중입니다. 완료되면 라이브 링크가 활성화됩니다."
+      >
+        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+        <span>CDN 배포 대기중 (1~2분)</span>
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors ${className || ''}`}
+    >
+      <span>라이브 보기</span>
+      <ExternalLink className="h-3 w-3" />
+    </a>
+  );
+};
+
 export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProps> = ({
   queueItems,
   activeWebsite,
@@ -111,123 +190,179 @@ export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProp
   }, [scopedItems, selectedUnit, searchQuery]);
 
   // 1-Click single post deploy
-  const handleSingleQuickDeploy = (item: DashboardQueueItem, e?: React.MouseEvent) => {
+  const handleSingleQuickDeploy = async (item: DashboardQueueItem, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    
+    const rawConfig = localStorage.getItem('seo_agent_github_config_v2');
+    let ghConfig = null;
+    if (rawConfig) {
+      try { ghConfig = JSON.parse(rawConfig); } catch (e) {}
+    }
+
+    if (!ghConfig || !ghConfig.token || !ghConfig.repo) {
+      alert("⚠️ 배포하려면 [GitHub 배포] 탭에서 GitHub Token 및 저장소 정보를 먼저 등록해주세요.");
+      return;
+    }
+
     setDeployingId(item.id);
 
-    setTimeout(() => {
-      const commitSha = Math.random().toString(36).substring(2, 9);
+    try {
+      const commitRes = await fetch('/api/github/commit-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          owner: ghConfig.owner.trim(),
+          repo: ghConfig.repo.trim(),
+          token: ghConfig.token.trim(),
+          branch: ghConfig.branch || 'main',
+          directory: ghConfig.posts_directory || 'content/posts',
+          postItem: item,
+          urlTemplate: ghConfig.deploy_url_template || `https://${activeWebsite.domain}/{slug}`,
+        })
+      });
+
+      if (!commitRes.ok) {
+        throw new Error('배포 API 호출 실패');
+      }
+
+      const commitData = await commitRes.json();
+
       const updated: DashboardQueueItem = {
         ...item,
         queue_status: 'published',
         published_at: new Date().toISOString(),
         github_deployment: {
-          repo: activeWebsite.git_repo,
-          commit_sha: commitSha,
+          repo: ghConfig.repo,
+          commit_sha: commitData.data?.commit?.sha || Math.random().toString(36).substring(2, 9),
           status: 'completed',
           conclusion: 'success',
           dispatched_at: new Date().toISOString(),
           completed_at: new Date().toISOString(),
-          live_url: item.japan_meta?.target_url || (activeWebsite.domain.includes('japan') ? `https://${activeWebsite.domain}/guide/${item.japan_meta?.category_slug || 'guide'}-${item.id}` : activeWebsite.live_url || `https://${activeWebsite.domain}/`),
+          live_url: commitData.liveUrl || activeWebsite.live_url || `https://${activeWebsite.domain}/`,
           deploy_target: activeWebsite.deploy_platform === 'firebase_hosting' ? 'firebase_hosting' : 'direct_commit',
         },
       };
 
       onUpdateItem(updated);
+      showToast(`'${item.seo_metadata?.title || item.topic}' GitHub 전송 완료! 실서버 반영 대기 중 (약 1분 소요)`);
+    } catch (error: any) {
+      console.error(error);
+      alert(`배포 실패: ${error.message}`);
+    } finally {
       setDeployingId(null);
-      showToast(`'${item.seo_metadata?.title || item.topic}' 원클릭 배포 완료 (커밋: ${commitSha})`);
-    }, 650);
+    }
   };
 
   // 1-Click batch deploy all ready posts for this site
-  const handleBatchDeploy = () => {
+  const handleBatchDeploy = async () => {
     const readyItems = scopedItems.filter((i) => i.queue_status === 'ready');
     if (readyItems.length === 0) {
       showToast('발행 대기 중인 글이 없습니다.', 'info');
       return;
     }
 
+    const rawConfig = localStorage.getItem('seo_agent_github_config_v2');
+    let ghConfig = null;
+    if (rawConfig) {
+      try { ghConfig = JSON.parse(rawConfig); } catch (e) {}
+    }
+
+    if (!ghConfig || !ghConfig.token || !ghConfig.repo) {
+      alert("⚠️ 배포하려면 [GitHub 배포] 탭에서 GitHub Token 및 저장소 정보를 먼저 등록해주세요.");
+      return;
+    }
+
     setBatchDeploying(true);
-    setTimeout(() => {
-      readyItems.forEach((item) => {
-        const commitSha = Math.random().toString(36).substring(2, 9);
-        const updated: DashboardQueueItem = {
-          ...item,
-          queue_status: 'published',
-          published_at: new Date().toISOString(),
-          github_deployment: {
-            repo: activeWebsite.git_repo,
-            commit_sha: commitSha,
-            status: 'completed',
-            conclusion: 'success',
-            dispatched_at: new Date().toISOString(),
-            completed_at: new Date().toISOString(),
-            live_url: activeWebsite.live_url || `https://${activeWebsite.domain}/`,
-            deploy_target: 'direct_commit',
-          },
-        };
-        onUpdateItem(updated);
-      });
-      setBatchDeploying(false);
-      showToast(`타깃 사이트 대기글 ${readyItems.length}건 전체 원클릭 배포 성공!`);
-    }, 900);
+    let successCount = 0;
+
+    for (const item of readyItems) {
+      try {
+        const commitRes = await fetch('/api/github/commit-post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            owner: ghConfig.owner.trim(),
+            repo: ghConfig.repo.trim(),
+            token: ghConfig.token.trim(),
+            branch: ghConfig.branch || 'main',
+            directory: ghConfig.posts_directory || 'content/posts',
+            postItem: item,
+            urlTemplate: ghConfig.deploy_url_template || `https://${activeWebsite.domain}/{slug}`,
+          })
+        });
+
+        if (commitRes.ok) {
+          const commitData = await commitRes.json();
+          const updated: DashboardQueueItem = {
+            ...item,
+            queue_status: 'published',
+            published_at: new Date().toISOString(),
+            github_deployment: {
+              repo: ghConfig.repo,
+              commit_sha: commitData.data?.commit?.sha || Math.random().toString(36).substring(2, 9),
+              status: 'completed',
+              conclusion: 'success',
+              dispatched_at: new Date().toISOString(),
+              completed_at: new Date().toISOString(),
+              live_url: commitData.liveUrl || activeWebsite.live_url || `https://${activeWebsite.domain}/`,
+              deploy_target: 'direct_commit',
+            },
+          };
+          onUpdateItem(updated);
+          successCount++;
+        }
+      } catch (e) {
+        console.error(`Error deploying item ${item.id}`, e);
+      }
+    }
+    
+    setBatchDeploying(false);
+    showToast(`대기글 ${successCount}건 GitHub 전송 완료! 실서버 반영 대기 중 (약 1분 소요)`);
   };
 
-  // Quick generator for sites that have 0 posts
-  const handleGenerateSampleForSite = () => {
-    const samplePost: DashboardQueueItem = {
-      id: `post-${activeWebsite.id}-${Date.now().toString(36)}`,
-      target_website_id: activeWebsite.id,
-      target_domain: activeWebsite.domain,
-      topic: `${activeWebsite.name} 핵심 가이드: 2026 트렌드 및 실전 이용 꿀팁 총정리`,
-      created_at: new Date().toISOString(),
-      queue_status: 'ready',
-      seo_score: 96,
-      target_audience: `${activeWebsite.name} 서비스 및 관련 정보를 찾는 이용자`,
-      tone: '친절하고 전문적인 실전 안내 가이드',
-      keyword_analysis: {
-        main_keyword: `${activeWebsite.name} 이용 가이드`,
-        sub_keywords: [`${activeWebsite.domain} 추천`, '2026 핵심 혜택', '실전 노하우'],
-        competition_level: '중',
-        search_intent: '정보성',
-        keyword_details: [
-          { keyword: `${activeWebsite.name} 이용 가이드`, type: 'main', competition: '중', intent: '정보성' },
-          { keyword: `${activeWebsite.domain} 추천`, type: 'sub', competition: '하', intent: '상업성' },
-        ],
-      },
-      seo_metadata: {
-        title: `${activeWebsite.name} 완벽 가이드: 2026 추천 혜택과 이용 노하우 총정리`,
-        meta_description: `${activeWebsite.name}(${activeWebsite.domain}) 서비스 이용 시 꼭 알아야 할 핵심 장점과 2026 최신 변경사항을 상세히 분석해 드립니다.`,
-        tags: [activeWebsite.name, activeWebsite.domain, '서비스가이드', '2026트렌드'],
-      },
-      content: {
-        h1: `${activeWebsite.name} 200% 활용하는 실전 완벽 가이드`,
-        body: `<h2>1. ${activeWebsite.name} 개요 및 핵심 장점</h2>
-<p>${activeWebsite.description || `${activeWebsite.name}는 공식 플랫폼으로 실사용자를 위한 핵심 정보를 제공합니다.`}</p>
-<h2>2. 실패 없는 이용을 위한 3단계 실전 팁</h2>
-<ul>
-  <li><strong>포인트 1:</strong> 최신 프로모션 및 도메인(${activeWebsite.domain}) 공지사항 사전 확인</li>
-  <li><strong>포인트 2:</strong> 맞춤형 카테고리 필터로 본인에게 최적화된 결과 탐색</li>
-  <li><strong>포인트 3:</strong> 주기적인 정보 업데이트 점검으로 혜택 극대화</li>
-</ul>
-<h2>3. 2026 추천 로드맵과 총평</h2>
-<p>지속적으로 관리되는 본 서비스를 통해 보다 빠르고 효율적인 결과를 누려보세요.</p>`,
-      },
-      stats: {
-        char_count: 1420,
-        word_count: 360,
-        image_count: 1,
-        h2_count: 3,
-        h3_count: 0,
-      },
-    };
+  // Quick generator for sites that have 0 posts (Generates and Auto-Deploys)
+  const handleGenerateSampleForSite = async () => {
+    try {
+      showToast(`'${activeWebsite.name}' 타깃 맞춤 대기글 생성 중...`, 'info');
+      
+      const genRes = await fetch('/api/generate-seo-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: `${activeWebsite.name} 실전 가이드 및 최신 꿀팁`,
+          target_audience: `${activeWebsite.name} 서비스 및 관련 정보를 찾는 이용자`,
+          category: activeWebsite.category || '가이드',
+          target_website: activeWebsite.domain,
+        }),
+      });
 
-    if (onAddNewPostToSite) {
-      onAddNewPostToSite(samplePost);
-    } else {
-      onUpdateItem(samplePost);
+      if (!genRes.ok) throw new Error('AI 글 작성 API 호출 실패');
+      
+      const genData = await genRes.json();
+      const generatedPost = genData.data as DashboardQueueItem;
+      
+      if (!generatedPost.id) {
+        generatedPost.id = `post-${activeWebsite.id}-${Date.now().toString(36)}`;
+      }
+      
+      // Auto-set as ready so it looks right during deployment
+      generatedPost.queue_status = 'ready';
+
+      if (onAddNewPostToSite) {
+        onAddNewPostToSite(generatedPost);
+      } else {
+        onUpdateItem(generatedPost);
+      }
+      
+      showToast(`'${activeWebsite.name}' 글 생성 완료. 즉시 자동 배포를 시작합니다.`, 'info');
+      
+      // Immediately deploy the generated post
+      await handleSingleQuickDeploy(generatedPost);
+
+    } catch (error: any) {
+      console.error(error);
+      alert(`생성 및 배포 실패: ${error.message}`);
     }
-    showToast(`'${activeWebsite.name}' 타깃 맞춤 대기글이 즉시 생성되었습니다.`);
   };
 
   const getUnitName = (unit: UnitFilter) => {
@@ -657,15 +792,9 @@ export const TargetSiteQuickDeployPanel: React.FC<TargetSiteQuickDeployPanelProp
                     )}
 
                     {isPublished && (
-                      <a
-                        href={item.github_deployment?.live_url || activeWebsite.live_url || `https://${activeWebsite.domain}/`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-1 rounded-xl bg-emerald-50 border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors"
-                      >
-                        <span>라이브 보기</span>
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
+                      <LiveStatusLink 
+                        url={item.github_deployment?.live_url || activeWebsite.live_url || `https://${activeWebsite.domain}/`} 
+                      />
                     )}
 
                     {!isReady && !isPublished && (

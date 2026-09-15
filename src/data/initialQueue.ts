@@ -278,7 +278,7 @@ export const INITIAL_QUEUE_ITEMS: DashboardQueueItem[] = [
       category_slug: 'discount-cards',
       category_name: '할인카드 & 환전 결제',
       has_hotel_comparison: false,
-      target_url: 'https://japan.noluga.com/guide/japan-esim-3n4d-data',
+      target_url: 'https://japan.noluga.com/guide/travel-cards-comparison',
       transport_passes: ['모바일 스이카(Suica)', '파스모(Pasmo)'],
       discount_cards: ['하나 트래블로그', '트래블월렛', '신한 SOL트래블', '토스 외화통장'],
     },

@@ -53,12 +53,12 @@ export interface GitHubDeploymentMeta {
   conclusion?: 'success' | 'failure' | 'cancelled' | 'timed_out' | null;
   live_url?: string;
   workflow_name?: string;
-  deploy_target?: 'github_pages' | 'firebase_hosting' | 'direct_commit';
+  deploy_target?: 'github_pages' | 'cloudflare_hosting' | 'direct_commit';
   commit_file_path?: string;
   steps?: { name: string; status: 'completed' | 'in_progress' | 'queued' | 'failure'; conclusion?: string }[];
 }
 
-export interface FirebaseDeployConfig {
+export interface CloudflareDeployConfig {
   project_id: string;
   site_id: string;
   custom_domain: string;
@@ -69,15 +69,15 @@ export interface GitHubConfig {
   owner: string;
   repo: string;
   token: string;
-  workflow_file: string; // e.g. deploy-firebase.yml or publish-post.yml
+  workflow_file: string; // e.g. deploy-cloudflare.yml or publish-post.yml
   branch: string; // default main
   posts_directory: string; // e.g. content/posts or posts
   deploy_url_template: string; // e.g. https://japan.noluga.com/guide/{slug}
-  firebase_project_id?: string;
-  firebase_site_id?: string;
+  cloudflare_project_id?: string;
+  cloudflare_site_id?: string;
   auto_poll: boolean;
   is_connected: boolean;
-  deploy_mode?: 'cloudflare' | 'commit' | 'workflow' | 'firebase';
+  deploy_mode?: 'cloudflare' | 'commit' | 'workflow' | 'cloudflare';
 }
 
 export interface JapanCategory {
@@ -141,6 +141,8 @@ export interface DashboardQueueItem extends SeoQueueItemPayload {
     h2_count: number;
     h3_count: number;
   };
+  schedule_minutes?: number;
+  auto_publish?: boolean;
 }
 
 export interface GenerationProgressStep {
@@ -169,8 +171,8 @@ export interface TargetWebsite {
   git_repo: string; // e.g. "noluga-org/japan-portal"
   branch: string;
   posts_directory: string; // e.g. "content/posts"
-  deploy_platform: 'firebase_hosting' | 'github_pages' | 'vercel' | 'cloudflare' | 'tistory' | 'blogger' | string;
-  firebase_project_id?: string;
+  deploy_platform: 'cloudflare_hosting' | 'github_pages' | 'vercel' | 'cloudflare' | 'tistory' | 'blogger' | string;
+  cloudflare_project_id?: string;
   status: 'active' | 'standby' | 'configuring';
   created_at: string;
   total_posts?: number;
@@ -188,7 +190,7 @@ export type PipelineStageId =
   | 'queue_approval'
   | 'git_commit'
   | 'cicd_runner'
-  | 'firebase_edge'
+  | 'cloudflare_edge'
   | 'search_indexing';
 
 export interface PipelineStageNode {

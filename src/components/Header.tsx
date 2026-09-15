@@ -9,6 +9,7 @@ import {
   Github,
   BarChart2,
   RefreshCw,
+  Activity,
 } from 'lucide-react';
 import { DashboardQueueItem, TargetWebsite } from '../types';
 
@@ -23,6 +24,7 @@ interface HeaderProps {
   targetWebsites: TargetWebsite[];
   onSelectWebsite: (site: TargetWebsite) => void;
   onOpenAddWebsiteModal: () => void;
+  onOpenSiteLogModal?: () => void;
   onSyncSites?: () => void;
   isSyncingSites?: boolean;
   syncStatusMsg?: string | null;

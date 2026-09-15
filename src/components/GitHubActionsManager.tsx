@@ -856,274 +856,20 @@ export const GitHubActionsManager: React.FC<GitHubActionsManagerProps> = ({
               </div>
             )}
 
-            {/* Path, Slug & Live URL Preview Customizer */}
-            {currentItem && (
-              <div className="rounded-xl border border-stone-200 bg-stone-50/90 p-3.5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-stone-900">
-                    <Link className="h-3.5 w-3.5 text-rose-600" />
-                    <span>배포 파일 경로 & 영문 슬러그(Slug) 커스텀</span>
-                  </div>
-                  <span className="rounded bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-800">
-                    Next.js 라우트: /guide/[slug]
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-bold text-stone-700 mb-1">
-                      저장소 마크다운 저장 경로
-                    </label>
-                    <input
-                      type="text"
-                      value={config.posts_directory || 'content/posts'}
-                      onChange={(e) => setConfig((prev) => ({ ...prev, posts_directory: e.target.value.trim() }))}
-                      placeholder="content/posts"
-                      className="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-mono text-stone-900 focus:border-stone-800 focus:outline-none"
-                    />
-                    <p className="mt-0.5 text-[10px] text-stone-400">저장소 내 빌드 대상 폴더 (예: content/posts 또는 content/guides)</p>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-[11px] font-bold text-stone-700">
-                        게시글 슬러그 (URL 식별자)
-                      </label>
-                      {currentItem.japan_meta?.target_url && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const parts = currentItem.japan_meta!.target_url.split('/');
-                            const last = parts[parts.length - 1];
-                            if (last) setCustomSlug(last);
-                          }}
-                          className="text-[10px] font-semibold text-rose-600 hover:underline"
-                        >
-                          기본 영문 슬러그
-                        </button>
-                      )}
-                    </div>
-                    <input
-                      type="text"
-                      value={customSlug}
-                      onChange={(e) => setCustomSlug(e.target.value)}
-                      placeholder="osaka-namba-vs-umeda-hotel"
-                      className="w-full rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-mono text-stone-900 focus:border-stone-800 focus:outline-none"
-                    />
-                    <p className="mt-0.5 text-[10px] text-stone-400">영문/숫자/하이픈 권장 (한글 특수문자 404 방지)</p>
-                  </div>
-                </div>
-
-                {/* Live Target URL Preview and Test Ping */}
-                <div className="rounded-lg border border-stone-200/80 bg-white p-2.5 space-y-2">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-stone-700">최종 배포 대상 라이브 URL:</span>
-                    <button
-                      type="button"
-                      disabled={isCheckingUrl}
-                      onClick={() => handleCheckUrl(getComputedLiveUrl(customSlug, currentItem))}
-                      className="inline-flex items-center gap-1 rounded-md bg-stone-100 hover:bg-stone-200 px-2 py-1 text-[11px] font-semibold text-stone-700 transition-colors disabled:opacity-50"
-                    >
-                      {isCheckingUrl ? (
-                        <RefreshCw className="h-3 w-3 animate-spin text-stone-600" />
-                      ) : (
-                        <Globe className="h-3 w-3 text-stone-600" />
-                      )}
-                      <span>실시간 URL 응답 점검</span>
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <code className="text-[11px] font-mono font-medium text-rose-700 bg-rose-50/60 px-2.5 py-1.5 rounded border border-rose-100 break-all select-all flex-1">
-                      {getComputedLiveUrl(customSlug, currentItem)}
-                    </code>
-                    <a
-                      href={getComputedLiveUrl(customSlug, currentItem)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="shrink-0 p-1 text-stone-500 hover:text-stone-900"
-                      title="새 탭에서 열기"
-                    >
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  </div>
-
-                  {/* URL status feedback badge */}
-                  {urlStatusResult && (
-                    <div className={`text-xs rounded-lg p-2.5 flex items-start gap-2 ${
-                      urlStatusResult.isOk
-                        ? 'bg-emerald-50 border border-emerald-200 text-emerald-900'
-                        : 'bg-amber-50 border border-amber-200 text-amber-900'
-                    }`}>
-                      {urlStatusResult.isOk ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-                      )}
-                      <div className="space-y-0.5">
-                        <div className="font-bold text-[11px]">
-                          {urlStatusResult.isOk
-                            ? `HTTP ${urlStatusResult.status} OK - 페이지가 정상 서비스 중입니다.`
-                            : `HTTP ${urlStatusResult.status || 404} (${urlStatusResult.statusText || 'Not Found'})`}
-                        </div>
-                        {!urlStatusResult.isOk && (
-                          <div className="text-[11px] text-amber-800">
-                            Cloudflare Pages의 Next.js 빌드가 완료되기 전(커밋 후 약 1~2분 소요)이거나 라우트가 아직 생성되지 않았습니다. 잠시 후 재점검해 보세요.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* 404 Troubleshooting Guide Collapsible Banner */}
-                <div className="rounded-lg border border-amber-200/80 bg-amber-50/50 p-2.5 text-xs text-amber-950 space-y-1.5">
-                  <div className="flex items-center gap-1.5 font-bold text-amber-900">
-                    <Info className="h-3.5 w-3.5 text-amber-600" />
-                    <span>배포 후 404 (This page could not be found) 발생 시 원인 & 체크포인트</span>
-                  </div>
-                  <ul className="text-[11px] text-amber-900/90 space-y-1 list-disc pl-4">
-                    <li>
-                      <strong className="font-bold">URL 라우트 규칙:</strong> <code className="bg-amber-100/80 px-1 py-0.2 rounded font-mono">japan.noluga.com</code>은 <code className="bg-amber-100/80 px-1 py-0.2 rounded font-mono">/posts/</code>가 아닌 <code className="bg-amber-100/80 px-1 py-0.2 rounded font-mono font-bold text-emerald-800">/guide/</code> 경로를 사용합니다. 본 시스템은 기본값으로 <code className="font-mono font-bold">/guide/&#123;slug&#125;</code>을 적용했습니다.
-                    </li>
-                    <li>
-                      <strong className="font-bold">Cloudflare CI/CD 빌드 시간 (1~2분):</strong> GitHub에 마크다운이 커밋된 직후 Cloudflare가 Next.js 정적 페이지를 생성하는 동안 일시적으로 404가 반환될 수 있습니다. 1~2분 뒤 새로고침해 주세요.
-                    </li>
-                    <li>
-                      <strong className="font-bold">저장소 내 디렉토리 일치:</strong> 타깃 저장소(<code className="font-mono">noluga-org/japan</code>)의 가이드 마크다운 폴더(<code className="font-mono">content/posts</code> 또는 <code className="font-mono">content/guides</code>)가 일치하는지 확인해 주세요.
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            )}
-
-            {/* 3 Deployment Methods Selector */}
-            <div className="space-y-2 pt-1">
-              <label className="block text-xs font-bold text-stone-700">
-                배포 방식
-              </label>
-
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {/* Method 1: Direct Firebase Deploy */}
-                <div
-                  onClick={() => setDeployMode('firebase')}
-                  className={`cursor-pointer rounded-2xl border p-3.5 transition-all ${
-                    deployMode === 'firebase'
-                      ? 'border-amber-400 bg-amber-50/50 shadow-xs ring-1 ring-amber-400'
-                      : 'border-stone-200 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <Flame className="h-5 w-5 text-amber-500" />
-                    <span className="rounded-full bg-amber-100 px-2 py-0.2 text-[10px] font-bold text-amber-800">
-                      추천 원클릭
-                    </span>
-                  </div>
-                  <h5 className="text-xs font-bold text-stone-900">파이어베이스 바로 배포</h5>
-                  <p className="text-[11px] text-stone-500 mt-1">
-                    japan.noluga.com 글로벌 CDN으로 즉시 정적 배포 & 인덱싱
-                  </p>
-                </div>
-
-                {/* Method 2: Direct Commit */}
-                <div
-                  onClick={() => setDeployMode('commit')}
-                  className={`cursor-pointer rounded-2xl border p-3.5 transition-all ${
-                    deployMode === 'commit'
-                      ? 'border-rose-400 bg-rose-50/50 shadow-xs ring-1 ring-rose-400'
-                      : 'border-stone-200 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <GitCommit className="h-5 w-5 text-rose-600" />
-                    <span className="rounded-full bg-rose-100 px-2 py-0.2 text-[10px] font-bold text-rose-800">
-                      Git 파일 생성
-                    </span>
-                  </div>
-                  <h5 className="text-xs font-bold text-stone-900">GitHub 파일 직접 커밋</h5>
-                  <p className="text-[11px] text-stone-500 mt-1">
-                    content/posts/{getPostSlug(currentItem || ({} as any))}.md 생성 후 Push
-                  </p>
-                </div>
-
-                {/* Method 3: Actions Workflow Dispatch */}
-                <div
-                  onClick={() => setDeployMode('workflow')}
-                  className={`cursor-pointer rounded-2xl border p-3.5 transition-all ${
-                    deployMode === 'workflow'
-                      ? 'border-stone-800 bg-stone-100 shadow-xs ring-1 ring-stone-800'
-                      : 'border-stone-200 bg-white hover:border-stone-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <Cpu className="h-5 w-5 text-stone-800" />
-                    <span className="rounded-full bg-stone-200 px-2 py-0.2 text-[10px] font-bold text-stone-700">
-                      Actions 러너
-                    </span>
-                  </div>
-                  <h5 className="text-xs font-bold text-stone-900">GitHub Actions 디스패치</h5>
-                  <p className="text-[11px] text-stone-500 mt-1">
-                    workflow_dispatch 이벤트 전달 및 러너 빌드 로그 추적
-                  </p>
-                </div>
-              </div>
-            </div>
 
             {/* Launch Action Buttons */}
             <div className="flex flex-wrap items-center gap-3 pt-2">
-              {deployMode === 'firebase' && (
-                <button
-                  onClick={handleFirebaseDirectDeploy}
-                  disabled={isDeploying}
-                  className="flex items-center gap-2 rounded-2xl bg-amber-500 px-6 py-3.5 text-xs font-bold text-stone-950 shadow-xs hover:bg-amber-400 disabled:opacity-50 transition-all"
-                >
-                  {isDeploying ? (
-                    <RefreshCw className="h-4 w-4 animate-spin text-stone-950" />
-                  ) : (
-                    <Flame className="h-4 w-4 fill-stone-950" />
-                  )}
-                  <span>japan.noluga.com 파이어베이스 즉시 배포 실행</span>
-                </button>
-              )}
-
-              {deployMode === 'commit' && (
-                <button
-                  onClick={handleDirectCommitPost}
-                  disabled={isDeploying}
-                  className="flex items-center gap-2 rounded-2xl bg-stone-900 px-6 py-3.5 text-xs font-bold text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-all"
-                >
-                  {isDeploying ? (
-                    <RefreshCw className="h-4 w-4 animate-spin text-amber-300" />
-                  ) : (
-                    <GitCommit className="h-4 w-4 text-amber-300" />
-                  )}
-                  <span>GitHub 저장소에 마크다운 파일 커밋 & 자동 푸시</span>
-                </button>
-              )}
-
-              {deployMode === 'workflow' && (
-                <button
-                  onClick={() => handleDispatchWorkflow(false)}
-                  disabled={isDeploying}
-                  className="flex items-center gap-2 rounded-2xl bg-stone-900 px-6 py-3.5 text-xs font-bold text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-all"
-                >
-                  {isDeploying ? (
-                    <RefreshCw className="h-4 w-4 animate-spin text-amber-300" />
-                  ) : (
-                    <Play className="h-4 w-4 text-amber-300 fill-amber-300" />
-                  )}
-                  <span>GitHub Actions 워크플로우 디스패치 실행</span>
-                </button>
-              )}
-
               <button
-                onClick={() => handleDispatchWorkflow(true)}
+                onClick={handleDirectCommitPost}
                 disabled={isDeploying}
-                className="flex items-center gap-1.5 rounded-2xl border border-stone-300 bg-white px-4 py-3.5 text-xs font-semibold text-stone-700 hover:bg-stone-50 transition-all"
-                title="토큰 없이도 전체 런 추적 및 배포 완료 시뮬레이션을 실행합니다"
+                className="flex items-center gap-2 rounded-2xl bg-stone-900 px-6 py-3.5 text-xs font-bold text-white shadow-xs hover:bg-stone-800 disabled:opacity-50 transition-all w-full sm:w-auto justify-center"
               >
-                <Sparkles className="h-3.5 w-3.5 text-amber-600" />
-                <span>테스트 시뮬레이션 배포</span>
+                {isDeploying ? (
+                  <RefreshCw className="h-4 w-4 animate-spin text-amber-300" />
+                ) : (
+                  <Sparkles className="h-4 w-4 text-amber-300" />
+                )}
+                <span>선택한 항목 자동 배포 실행 (GitHub Commit)</span>
               </button>
             </div>
           </div>
@@ -1140,110 +886,17 @@ export const GitHubActionsManager: React.FC<GitHubActionsManagerProps> = ({
               </span>
             </div>
 
-            {/* Stepper Steps */}
-            <div className="space-y-2.5">
-              <div
-                className={`flex items-start gap-3 rounded-xl p-3 border transition-colors ${
-                  deployStage === 'preparing'
-                    ? 'border-amber-300 bg-amber-50/60'
-                    : deployStage === 'injecting' || deployStage === 'building' || deployStage === 'success'
-                    ? 'border-emerald-200 bg-emerald-50/40 text-emerald-900'
-                    : 'border-stone-200 bg-stone-50 text-stone-400'
-                }`}
-              >
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-xs">
-                  {deployStage === 'injecting' || deployStage === 'building' || deployStage === 'success' ? (
-                    <Check className="h-3 w-3 text-emerald-600" />
-                  ) : (
-                    <span className="text-[10px] font-bold text-stone-700">1</span>
-                  )}
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-stone-900">데이터 패키징 & 유효성 검증</h5>
-                  <p className="text-[10px] text-stone-500">YAML Frontmatter, 메타데이터, Schema JSON-LD</p>
-                </div>
-              </div>
-
-              <div
-                className={`flex items-start gap-3 rounded-xl p-3 border transition-colors ${
-                  deployStage === 'injecting'
-                    ? 'border-amber-300 bg-amber-50/60'
-                    : deployStage === 'building' || deployStage === 'success'
-                    ? 'border-emerald-200 bg-emerald-50/40 text-emerald-900'
-                    : 'border-stone-200 bg-stone-50 text-stone-400'
-                }`}
-              >
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-xs">
-                  {deployStage === 'building' || deployStage === 'success' ? (
-                    <Check className="h-3 w-3 text-emerald-600" />
-                  ) : deployStage === 'injecting' ? (
-                    <RefreshCw className="h-3 w-3 animate-spin text-amber-600" />
-                  ) : (
-                    <span className="text-[10px] font-bold text-stone-700">2</span>
-                  )}
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-stone-900">GitHub 저장소 주입 / 커밋</h5>
-                  <p className="text-[10px] text-stone-500">Contents API 또는 워크플로우 디스패치</p>
-                </div>
-              </div>
-
-              <div
-                className={`flex items-start gap-3 rounded-xl p-3 border transition-colors ${
-                  deployStage === 'building'
-                    ? 'border-amber-300 bg-amber-50/60'
-                    : deployStage === 'success'
-                    ? 'border-emerald-200 bg-emerald-50/40 text-emerald-900'
-                    : 'border-stone-200 bg-stone-50 text-stone-400'
-                }`}
-              >
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-xs">
-                  {deployStage === 'success' ? (
-                    <Check className="h-3 w-3 text-emerald-600" />
-                  ) : deployStage === 'building' ? (
-                    <RefreshCw className="h-3 w-3 animate-spin text-amber-600" />
-                  ) : (
-                    <span className="text-[10px] font-bold text-stone-700">3</span>
-                  )}
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-stone-900">Firebase Hosting 배포 & CDN 갱신</h5>
-                  <p className="text-[10px] text-stone-500">정적 빌드 완료 후 글로벌 에지 캐시 배포</p>
-                </div>
-              </div>
-
-              <div
-                className={`flex items-start gap-3 rounded-xl p-3 border transition-colors ${
-                  deployStage === 'success'
-                    ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                    : 'border-stone-200 bg-stone-50 text-stone-400'
-                }`}
-              >
-                <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white shadow-xs">
-                  {deployStage === 'success' ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  ) : (
-                    <span className="text-[10px] font-bold text-stone-700">4</span>
-                  )}
-                </div>
-                <div>
-                  <h5 className="text-xs font-bold text-stone-900">결과 피드백 & 대기열 반영 완료</h5>
-                  <p className="text-[10px] text-stone-500">japan.noluga.com 라이브 확인 및 published 전환</p>
-                </div>
-              </div>
-            </div>
-
             {/* Live Terminal Output Console */}
-            <div className="rounded-2xl bg-stone-950 p-4 font-mono text-xs text-stone-300 space-y-2">
+            <div className="rounded-2xl bg-stone-950 p-4 font-mono text-xs text-stone-300 flex flex-col min-h-[300px] h-full">
               <div className="flex items-center justify-between pb-2 border-b border-stone-800 text-[11px] text-stone-400">
                 <span className="flex items-center gap-1.5 text-amber-400">
                   <Terminal className="h-3.5 w-3.5" />
-                  파이프라인 실시간 피드백 콘솔
+                  진행중인 스크립트 현황 (파이프라인 피드백)
                 </span>
                 <span>{terminalLogs.length}건 기록</span>
               </div>
 
-              <div className="max-h-48 overflow-y-auto space-y-1 text-[11px] pr-1">
+              <div className="flex-1 overflow-y-auto space-y-1 text-[11px] pr-1 mt-2">
                 {terminalLogs.length === 0 ? (
                   <p className="text-stone-500 italic">
                     대기 중: 왼쪽에서 배포 방식을 선택하고 실행 버튼을 누르면 실시간 통신 및 배포 로그가 출력됩니다.
@@ -1271,80 +924,31 @@ export const GitHubActionsManager: React.FC<GitHubActionsManagerProps> = ({
               </div>
             </div>
 
-            {/* Successful Deployment Card */}
             {lastDispatchedMeta && (
-              <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 space-y-2.5">
+              <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-xs font-bold text-emerald-900">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-amber-900">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    배포 완료 및 라이브 피드백 수신
+                    GitHub 커밋 전송 완료 (라이브 반영 대기 중)
                   </span>
-                  <span className="rounded bg-emerald-200/80 px-2 py-0.5 text-[10px] font-mono text-emerald-900 font-bold">
+                  <span className="rounded bg-amber-200/80 px-2 py-0.5 text-[10px] font-mono text-amber-900 font-bold">
                     {lastDispatchedMeta.deploy_target === 'firebase_hosting' ? 'FIREBASE HOSTING' : 'GITHUB COMMIT'}
                   </span>
                 </div>
 
-                <div className="text-xs text-emerald-800 space-y-1">
+                <div className="text-xs text-amber-800 space-y-1">
                   {lastDispatchedMeta.commit_sha && (
-                    <div>커밋 식별자: <code className="font-mono font-bold text-emerald-950">{lastDispatchedMeta.commit_sha}</code></div>
+                    <div>커밋 식별자: <code className="font-mono font-bold text-amber-950">{lastDispatchedMeta.commit_sha}</code></div>
                   )}
                   {lastDispatchedMeta.run_id && (
-                    <div>Actions Run: <code className="font-mono font-bold text-emerald-950">#{lastDispatchedMeta.run_id}</code></div>
+                    <div>Actions Run: <code className="font-mono font-bold text-amber-950">#{lastDispatchedMeta.run_id}</code></div>
                   )}
                   {lastDispatchedMeta.live_url && (
-                    <div className="pt-2 space-y-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <a
-                          href={lastDispatchedMeta.live_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-800 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-emerald-700 transition-colors"
-                        >
-                          <span>배포된 포스팅 바로 보기</span>
-                          <ExternalLink className="h-3.5 w-3.5" />
-                        </a>
-
-                        <button
-                          type="button"
-                          disabled={isCheckingUrl}
-                          onClick={() => handleCheckUrl(lastDispatchedMeta.live_url!)}
-                          className="inline-flex items-center gap-1 rounded-xl border border-emerald-300 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100/50 transition-colors disabled:opacity-50"
-                        >
-                          {isCheckingUrl ? (
-                            <RefreshCw className="h-3 w-3 animate-spin text-emerald-700" />
-                          ) : (
-                            <Globe className="h-3 w-3 text-emerald-700" />
-                          )}
-                          <span>라이브 URL 연결 상태 확인</span>
-                        </button>
-                      </div>
-
-                      {/* Status feedback */}
-                      {urlStatusResult && urlStatusResult.url === lastDispatchedMeta.live_url && (
-                        <div className={`text-xs rounded-lg p-2.5 flex items-start gap-2 ${
-                          urlStatusResult.isOk
-                            ? 'bg-emerald-100 border border-emerald-300 text-emerald-900'
-                            : 'bg-amber-100 border border-amber-300 text-amber-900'
-                        }`}>
-                          {urlStatusResult.isOk ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
-                          ) : (
-                            <AlertCircle className="h-4 w-4 text-amber-700 shrink-0 mt-0.5" />
-                          )}
-                          <div className="text-[11px] space-y-0.5">
-                            <span className="font-bold">
-                              {urlStatusResult.isOk
-                                ? `HTTP ${urlStatusResult.status} OK - 라이브 포털에서 정상 서비스 중입니다.`
-                                : `HTTP ${urlStatusResult.status || 404} (${urlStatusResult.statusText || 'Not Found'})`}
-                            </span>
-                            {!urlStatusResult.isOk && (
-                              <p className="text-amber-800">
-                                💡 GitHub 커밋 완료 후 Cloudflare CI/CD 정적 빌드에 약 1~2분이 소요됩니다. 빌드가 완료되면 정상 표시됩니다.
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                    <div className="pt-2">
+                      <p className="text-amber-700 font-bold mb-2">
+                        💡 GitHub에 콘텐츠 전송이 완료되었습니다. Cloudflare에서 빌드 후 실제 반영되기까지 1~2분이 소요됩니다. 
+                        [전체 진행 상황 탭] 또는 [타깃 사이트 대시보드]에서 라이브 상태를 확인하세요.
+                      </p>
                     </div>
                   )}
                 </div>

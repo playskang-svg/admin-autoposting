@@ -2,7 +2,6 @@ services:
   - type: web
     name: admin-autoposting
     env: node
-    plan: free
     buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
@@ -10,3 +9,4 @@ services:
         value: 20
       - key: GEMINI_API_KEY
         sync: false
+

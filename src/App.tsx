@@ -304,6 +304,7 @@ export default function App() {
             onSelectItem={handleSelectItem}
             onDeleteItem={handleDeleteItem}
             onUpdateStatus={handleUpdateStatus}
+            onUpdateItem={handleUpdateItem}
             onNavigateToStudio={() => setActiveTab('studio')}
             onOpenGitHubModal={handleOpenGitHub}
             onResetToRecommended={handleResetToRecommended}

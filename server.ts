@@ -81,7 +81,7 @@ app.get('/api/remote-sites', async (req, res) => {
 
           let deploy_platform = 'cloudflare';
           const platLower = platform.toLowerCase();
-          if (platLower.includes('firebase')) deploy_platform = 'firebase_hosting';
+          if (platLower.includes('cloudflare')) deploy_platform = 'cloudflare_hosting';
           else if (platLower.includes('vercel')) deploy_platform = 'vercel';
           else if (platLower.includes('github')) deploy_platform = 'github_pages';
           else if (platLower.includes('tistory')) deploy_platform = 'tistory';
@@ -105,7 +105,7 @@ app.get('/api/remote-sites', async (req, res) => {
             branch: 'main',
             posts_directory: 'content/posts',
             deploy_platform,
-            firebase_project_id: deploy_platform === 'firebase_hosting' ? cleanDomain.replace(/[^a-zA-Z0-9]/g, '-') : undefined,
+            cloudflare_project_id: deploy_platform === 'cloudflare_hosting' ? cleanDomain.replace(/[^a-zA-Z0-9]/g, '-') : undefined,
             status,
             created_at: '2026-09-14T00:00:00.000Z',
             total_posts: cleanDomain === 'japan.noluga.com' ? 5 : 0,
@@ -160,7 +160,7 @@ app.post('/api/generate-seo-post', async (req, res) => {
 3. 여행자 맞춤: 효도여행(무릎/계단 피하는 평지 동선, 엘리베이터, 예약제 식당), 커플 데이트(야경, 감성 카페), 아이 동반 가족여행(침대 가드, 주방, 유모차), 인원수별(1인 혼행, 2인, 3~4인, 대가족) 관점을 명시하세요.
 4. 교통 및 할인카드: 신칸센, 특급 하루카, 지하철 24/48/72시간권, 렌터카 팁 및 트래블로그 vs 트래블월렛 vs SOL트래블 수수료 0% 비교를 적극 포함하세요.
 5. 미디어 배치: 본문 중간중간 사진/인포그래픽이 배치될 위치에 구체적인 Alt 태그를 가진 <img src='image_placeholder' alt='구체적인 대체 텍스트'> 태그를 2~4개 삽입하세요.
-6. 타깃 사이트: https://japan.noluga.com/ 에 최적화된 URL 슬러그와 카테고리를 설정하세요.`;
+6. 타깃 사이트: https://japan.noluga.com/ 에 최적화된 URL 슬러그와 카테고리를 설정하세요. JSON의 content.body 안에 HTML을 쓸 때 단계별(steps) 구분을 명확히 하고 가독성 좋게 작성하세요.`;
 
     const promptText = `주제: ${topic}
 대상 독자: ${target_audience}
@@ -497,7 +497,7 @@ app.post('/api/github/commit-post', async (req, res) => {
   }
 
   const cleanDir = directory.replace(/^\/+|\/+$/g, '');
-  const filePath = `${cleanDir}/${slug}.md`;
+  
 
   // Compute live target URL
   let computedLiveUrl = `https://japan.noluga.com/guide/${slug}`;
@@ -508,15 +508,54 @@ app.post('/api/github/commit-post', async (req, res) => {
   }
 
   // Build Frontmatter & Markdown content for Hugo / Astro / Next.js / Jekyll / 11ty
-  const frontmatter = `---
+
+  let frontmatter = "";
+  let filePath = "";
+
+  if (repo === 'japantravelsite') {
+    // japantravelsite requires strict JSON format
+    const finalJson = {
+      collection: "priority",
+      order: 400,
+      slug: slug,
+      citySlug: postItem.japan_meta?.city || "osaka",
+      category: postItem.japan_meta?.category_slug || "숙소 위치",
+      eyebrow: postItem.japan_meta?.city ? `${postItem.japan_meta.city} · 추천` : "추천 가이드",
+      title: (postItem.seo_metadata?.title || postItem.topic || "").slice(0, 45),
+      summary: (postItem.seo_metadata?.meta_description || "").slice(0, 150),
+      targetKeyword: postItem.keyword_analysis?.main_keyword || postItem.topic,
+      audience: postItem.target_audience || "일본 여행을 준비하는 여행자",
+      publishedAt: new Date().toISOString().split('T')[0],
+      updatedAt: new Date().toISOString().split('T')[0],
+      answer: "자동화 봇이 생성한 가이드 요약입니다.",
+      steps: [
+        {
+          title: postItem.content?.h1 || "핵심 가이드",
+          body: postItem.content?.body || "내용이 여기에 들어갑니다."
+        }
+      ],
+      checklist: ["핵심 항목을 확인하세요"],
+      comparison: {
+        caption: "기본 비교",
+        headers: ["구분", "특징"],
+        rows: [["예시", "데이터"]]
+      },
+      sections: [],
+      mistakes: ["잘못된 정보 확인하기"],
+      faq: [],
+      sources: []
+    };
+    frontmatter = JSON.stringify(finalJson, null, 2);
+    filePath = `${cleanDir}/${slug}.json`;
+  } else {
+    // Default Markdown with Frontmatter for other sites
+    frontmatter = `---
 title: "${(postItem.seo_metadata?.title || postItem.topic || '').replace(/"/g, '\\"')}"
 date: ${new Date().toISOString()}
 draft: false
 slug: "${slug}"
 category: "${postItem.japan_meta?.category_slug || 'travel'}"
-city: "${postItem.japan_meta?.city || 'japan'}"
-travel_type: "${postItem.japan_meta?.travel_type || '자유여행'}"
-tags: ${JSON.stringify(postItem.seo_metadata?.tags || ['일본여행', '놀루가'])}
+tags: ${JSON.stringify(postItem.seo_metadata?.tags || ['general'])}
 meta_description: "${(postItem.seo_metadata?.meta_description || '').replace(/"/g, '\\"')}"
 target_url: "${computedLiveUrl}"
 ---
@@ -525,6 +564,9 @@ target_url: "${computedLiveUrl}"
 
 ${postItem.content?.body || ''}
 `;
+    filePath = `${cleanDir}/${slug}.md`;
+  }
+
 
   try {
     // 1. Check if file already exists to obtain SHA for update
@@ -764,8 +806,8 @@ app.post('/api/github/run-jobs', async (req, res) => {
   }
 });
 
-// 6. Direct Firebase Hosting Deployment / Simulation Endpoint
-app.post('/api/firebase/deploy-feedback', async (req, res) => {
+// 6. Direct Cloudflare Hosting Deployment / Simulation Endpoint
+app.post('/api/cloudflare/deploy-feedback', async (req, res) => {
   const { projectId = 'japan-noluga', siteId = 'japan-noluga', postItem } = req.body;
 
   const deploymentId = 'fb-' + Date.now().toString(36);
@@ -783,11 +825,11 @@ app.post('/api/firebase/deploy-feedback', async (req, res) => {
     site_id: siteId,
     target_url: `https://japan.noluga.com/${slug}`,
     deployed_at: new Date().toISOString(),
-    message: `Firebase Hosting [${projectId}] 프로덕션 채널로 배포가 성공적으로 완료되었습니다!`,
+    message: `Cloudflare Hosting [${projectId}] 프로덕션 채널로 배포가 성공적으로 완료되었습니다!`,
     steps: [
       { name: '1. 포스트 메타데이터 및 Schema JSON-LD 유효성 검증', status: 'completed' },
       { name: '2. 정적 HTML / 마크다운 렌더링 파이프라인 컴파일', status: 'completed' },
-      { name: '3. Firebase Hosting 글로벌 엣지 CDN 캐시 갱신 (japan.noluga.com)', status: 'completed' },
+      { name: '3. Cloudflare Hosting 글로벌 엣지 CDN 캐시 갱신 (japan.noluga.com)', status: 'completed' },
       { name: '4. Google Search Console & Naver Search Advisor 핑 전송', status: 'completed' },
     ],
   });

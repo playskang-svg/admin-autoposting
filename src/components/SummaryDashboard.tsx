@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Layers,
   Sparkles,
@@ -41,6 +41,85 @@ interface SummaryDashboardProps {
   targetWebsites?: TargetWebsite[];
   onNavigateToFlowchart?: () => void;
 }
+
+const LiveStatusLink: React.FC<{ url: string }> = ({ url }) => {
+  const [status, setStatus] = useState<'checking' | 'live' | 'error'>('checking');
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    const checkUrl = async () => {
+      if (!isMounted) return;
+      try {
+        const res = await fetch('/api/check-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url }),
+        });
+        const data = await res.json();
+        if (!isMounted) return;
+        
+        if (data.isOk) {
+          setStatus('live');
+        } else {
+          setStatus('error');
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        setStatus('error');
+      }
+    };
+
+    // Initial check
+    setStatus('checking');
+    checkUrl();
+
+    // Poll every 10 seconds if not live yet
+    const intervalId = setInterval(() => {
+      if (status !== 'live') {
+        checkUrl();
+      }
+    }, 10000);
+
+    return () => { 
+      isMounted = false; 
+      clearInterval(intervalId);
+    };
+  }, [url, status]);
+
+  if (status === 'checking') {
+    return (
+      <span className="block text-[10px] text-stone-500 flex items-center gap-1">
+        <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+        <span>라이브 확인중...</span>
+      </span>
+    );
+  }
+
+  if (status === 'error') {
+    return (
+      <span
+        className="block text-[10px] text-amber-600 font-semibold flex items-center gap-1 cursor-wait"
+        title="CDN 배포 대기 중 (1~2분 소요)"
+      >
+        <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+        <span className="truncate w-32">배포 대기중 (1~2분)</span>
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="block text-[10px] text-emerald-600 hover:text-emerald-700 hover:underline font-semibold flex items-center gap-1"
+    >
+      <span className="truncate w-32">{url.replace('https://', '')}</span>
+      <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+    </a>
+  );
+};
 
 export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
   queueItems,
@@ -446,15 +525,7 @@ export const SummaryDashboard: React.FC<SummaryDashboardProps> = ({
                           배포 완료
                         </span>
                         {item.github_deployment?.live_url && (
-                          <a
-                            href={item.github_deployment.live_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="block text-[10px] text-blue-600 hover:underline flex items-center gap-1"
-                          >
-                            <span>Live 사이트 보기</span>
-                            <ExternalLink className="h-2.5 w-2.5" />
-                          </a>
+                          <LiveStatusLink url={item.github_deployment.live_url} />
                         )}
                       </div>
                     ) : item.queue_status === 'ready' ? (

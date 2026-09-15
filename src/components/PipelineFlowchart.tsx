@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import {
-  ArrowRight,
-  Play,
-  RefreshCw,
-  CheckCircle2,
-  Sparkles,
-  Layers,
-  Send,
-  Github,
-  Globe,
+  ArrowRight, Play, RefreshCw, CheckCircle2, Sparkles,
+  Layers, Send, Github, Globe, ExternalLink, AlertTriangle
 } from 'lucide-react';
-import { DashboardQueueItem, QueueStatus, TargetWebsite } from '../types';
+import { DashboardQueueItem, QueueStatus, TargetWebsite, GitHubConfig } from '../types';
 import { TargetSiteQuickDeployPanel } from './TargetSiteQuickDeployPanel';
 
 interface PipelineFlowchartProps {
@@ -36,6 +29,7 @@ interface StepInfo {
   badge?: string;
   actionText: string;
   onAction: () => void;
+  getItems: () => DashboardQueueItem[];
 }
 
 export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
@@ -52,13 +46,15 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
   onSelectItem = () => {},
   onAddNewPostToSite,
 }) => {
-  const readyCount = queueItems.filter((i) => i.queue_status === 'ready').length;
+  const readyCount = queueItems.filter((i) => i.queue_status === 'ready' || i.queue_status === 'scheduled').length;
   const publishedCount = queueItems.filter((i) => i.queue_status === 'published').length;
+  const inProgressCount = queueItems.filter((i) => i.queue_status === 'queued').length;
 
   const [activeStep, setActiveStep] = useState<number>(3);
   const [isSimulating, setIsSimulating] = useState(false);
   const [simStep, setSimStep] = useState<number | null>(null);
   const [simMessage, setSimMessage] = useState<string>('');
+  const [showItemDetail, setShowItemDetail] = useState(false);
 
   const steps: StepInfo[] = [
     {
@@ -69,6 +65,7 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
       badge: `${queueItems.length}건 분석`,
       actionText: '새 글 생성하기',
       onAction: onNavigateToStudio,
+      getItems: () => queueItems,
     },
     {
       step: 2,
@@ -78,6 +75,7 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
       badge: 'AI 집필',
       actionText: '스튜디오 열기',
       onAction: onNavigateToStudio,
+      getItems: () => queueItems.filter(i => i.queue_status === 'draft'),
     },
     {
       step: 3,
@@ -87,15 +85,17 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
       badge: `${readyCount}건 대기 (10건 시 자동 배포)`,
       actionText: '대기열 확인',
       onAction: () => onNavigateToQueue(),
+      getItems: () => queueItems.filter(i => i.queue_status === 'ready' || i.queue_status === 'scheduled'),
     },
     {
       step: 4,
       id: 'github-queue',
       name: 'GitHub 대기현황 절차',
       desc: `저장소(${activeWebsite.git_repo})의 Actions 워크플로우 러너 대기열(Queued / In-Progress) 및 Commit 배치 큐를 실시간 추적합니다.`,
-      badge: 'GitHub 러너 큐',
+      badge: `${inProgressCount}건 큐 대기`,
       actionText: '대기현황 조회',
       onAction: () => onNavigateToDeploy(),
+      getItems: () => queueItems.filter(i => i.queue_status === 'queued'),
     },
     {
       step: 5,
@@ -105,6 +105,7 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
       badge: '디폴트 파이프라인',
       actionText: '배포 센터 열기',
       onAction: () => onNavigateToDeploy(),
+      getItems: () => queueItems.filter(i => i.queue_status === 'queued'),
     },
     {
       step: 6,
@@ -114,43 +115,16 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
       badge: `${publishedCount}건 라이브 완료`,
       actionText: '라이브 검증 확인',
       onAction: () => onNavigateToDeploy(),
+      getItems: () => queueItems.filter(i => i.queue_status === 'published'),
     },
   ];
 
   const current = steps.find((s) => s.step === activeStep) || steps[2];
-
-  const handleRunSimulation = () => {
-    if (isSimulating) return;
-    setIsSimulating(true);
-
-    const msgs = [
-      '1단계: 타깃 키워드 분석 완료',
-      '2단계: AI 마크다운 본문 생성 완료',
-      '3단계: 대기열(10건 자동 배포 임계치) 감지 완료',
-      '4단계: GitHub 대기현황 및 Actions 러너 큐 확인 완료',
-      '5단계: GitHub-Cloudflare 빌드 트리거 완료',
-      '6단계: Cloudflare/Firebase 라이브(200 OK) 확인 후 발행완료 반영!',
-    ];
-
-    let i = 0;
-    const timer = setInterval(() => {
-      if (i < 6) {
-        setSimStep(i + 1);
-        setActiveStep(i + 1);
-        setSimMessage(msgs[i]);
-        i++;
-      } else {
-        clearInterval(timer);
-        setIsSimulating(false);
-        setSimStep(null);
-        setSimMessage('전체 파이프라인 (GitHub-Cloudflare 기본 + 라이브 검증) 시뮬레이션 정상 완료');
-      }
-    }, 900);
-  };
+  const stepItems = current.getItems();
 
   return (
     <div className="space-y-4">
-      {/* Top Status & Test Trigger */}
+      {/* Top Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4">
         <div className="flex items-center gap-3">
           <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0" />
@@ -160,31 +134,7 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
             저장소: <span className="font-mono text-stone-700">{activeWebsite.git_repo}</span>
           </div>
         </div>
-
-        <button
-          onClick={handleRunSimulation}
-          disabled={isSimulating}
-          className="flex items-center justify-center gap-1.5 rounded-xl bg-stone-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-stone-800 disabled:opacity-50 transition-colors shrink-0"
-        >
-          {isSimulating ? (
-            <RefreshCw className="h-3 w-3 animate-spin text-amber-300" />
-          ) : (
-            <Play className="h-3 w-3 fill-amber-300 text-amber-300" />
-          )}
-          <span>파이프라인 테스트</span>
-        </button>
       </div>
-
-      {/* Simulation Banner (only when active or just finished) */}
-      {simMessage && (
-        <div className="flex items-center justify-between rounded-xl bg-stone-900 px-4 py-2 text-xs font-mono text-stone-200">
-          <span className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-            <span>{simMessage}</span>
-          </span>
-          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-        </div>
-      )}
 
       {/* 6-Step Connected Flow Nodes */}
       <div className="rounded-2xl border border-stone-200 bg-white p-4">
@@ -196,7 +146,14 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
             return (
               <div
                 key={item.step}
-                onClick={() => setActiveStep(item.step)}
+                onClick={() => {
+                  setActiveStep(item.step);
+                  if (isSelected) {
+                    setShowItemDetail(!showItemDetail); // Toggle list if clicked again
+                  } else {
+                    setShowItemDetail(true); // Open on first click
+                  }
+                }}
                 className={`cursor-pointer rounded-xl border p-3 transition-all ${
                   isSimActive
                     ? 'border-amber-400 bg-amber-50 shadow-xs'
@@ -208,9 +165,7 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
                 <div className="flex items-center justify-between mb-1.5">
                   <span
                     className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${
-                      isSelected
-                        ? 'bg-amber-400 text-stone-950'
-                        : 'bg-stone-200 text-stone-700'
+                      isSelected ? 'bg-amber-400 text-stone-950' : 'bg-stone-200 text-stone-700'
                     }`}
                   >
                     {item.step}
@@ -219,8 +174,8 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
                     <span
                       className={`rounded px-1.5 py-0.5 text-[9px] font-semibold ${
                         isSelected
-                          ? 'bg-stone-800 text-stone-300'
-                          : 'bg-white border border-stone-200 text-stone-600'
+                          ? 'bg-stone-800 text-stone-300 cursor-pointer hover:bg-stone-700'
+                          : 'bg-white border border-stone-200 text-stone-600 hover:bg-stone-100'
                       }`}
                     >
                       {item.badge}
@@ -251,9 +206,49 @@ export const PipelineFlowchart: React.FC<PipelineFlowchartProps> = ({
             <ArrowRight className="h-3 w-3" />
           </button>
         </div>
+        
+        {/* Step Items List Popup/Expansion */}
+        {showItemDetail && (
+          <div className="mt-4 bg-stone-50 border border-stone-200 rounded-xl p-3 overflow-hidden animate-in slide-in-from-top-2 fade-in duration-200">
+            <div className="flex justify-between items-center mb-2 px-1">
+              <h4 className="text-xs font-bold text-stone-800">
+                {current.name} 해당 항목 ({stepItems.length}건)
+              </h4>
+              <button 
+                onClick={() => setShowItemDetail(false)}
+                className="text-[10px] text-stone-500 hover:text-stone-900 font-bold"
+              >
+                닫기 ✕
+              </button>
+            </div>
+            {stepItems.length === 0 ? (
+              <div className="text-xs text-stone-400 p-4 text-center border border-dashed border-stone-300 rounded-lg">
+                해당하는 항목이 없습니다.
+              </div>
+            ) : (
+              <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1">
+                {stepItems.map(item => (
+                  <div key={item.id} className="flex items-center justify-between bg-white border border-stone-200 p-2 rounded-lg hover:border-stone-400 transition-colors cursor-pointer" onClick={() => onSelectItem && onSelectItem(item)}>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs font-bold text-stone-800 truncate max-w-[200px] sm:max-w-sm">
+                        {item.seo_metadata?.title || item.topic || '제목 없음'}
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-stone-500">{item.queue_status}</span>
+                        {item.schedule_minutes && item.auto_publish && (
+                          <span className="text-[10px] text-amber-600 font-bold">자동예약됨</span>
+                        )}
+                      </div>
+                    </div>
+                    <ArrowRight className="h-3 w-3 text-stone-300" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Target Website Pending Posts Quick View & 1-Click Deploy Panel */}
       <TargetSiteQuickDeployPanel
         queueItems={queueItems}
         activeWebsite={activeWebsite}

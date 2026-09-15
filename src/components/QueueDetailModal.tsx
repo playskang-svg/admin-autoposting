@@ -257,18 +257,6 @@ export const QueueDetailModal: React.FC<QueueDetailModalProps> = ({
             <span>콘텐츠 편집</span>
           </button>
 
-          <button
-            id="tab-publish"
-            onClick={() => setActiveTab('publish')}
-            className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-              activeTab === 'publish'
-                ? 'bg-stone-900 text-white'
-                : 'text-stone-600 hover:bg-stone-100 hover:text-stone-900'
-            }`}
-          >
-            <Send className="h-3.5 w-3.5" />
-            <span>웹훅 자동 발행</span>
-          </button>
         </div>
 
         {/* Modal Body Content */}
@@ -563,92 +551,7 @@ export const QueueDetailModal: React.FC<QueueDetailModalProps> = ({
             </div>
           )}
 
-          {/* TAB 5: PUBLISH / WEBHOOK SIMULATION */}
-          {activeTab === 'publish' && (
-            <div className="space-y-6">
-              <div className="rounded-xl border border-stone-200 bg-stone-50 p-5 space-y-4">
-                <div className="flex items-center gap-2 text-stone-900 font-bold text-sm">
-                  <Send className="h-4 w-4 text-emerald-600" />
-                  <span>자동화 파이프라인 웹훅(Webhook) 및 CMS 연동 테스트</span>
-                </div>
-                <p className="text-xs text-stone-600">
-                  이 대기열 항목의 JSON 데이터를 대상 자동화 시스템으로 전송하여 즉시 발행하거나 스케줄링하는 시뮬레이션입니다.
-                </p>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-800">연동 대상 CMS / 시스템</label>
-                    <select
-                      value={targetPlatform}
-                      onChange={(e) => setTargetPlatform(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 focus:border-stone-900 focus:outline-hidden"
-                    >
-                      <option value="WordPress REST API">WordPress REST API (wp-json)</option>
-                      <option value="Ghost Admin API">Ghost Admin API</option>
-                      <option value="Tistory Open API">Tistory Open API</option>
-                      <option value="Custom Webhook (Zapier / n8n / Make)">Custom Webhook (Zapier / n8n / Make)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-stone-800">Webhook 수신 URL</label>
-                    <input
-                      type="text"
-                      value={webhookUrl}
-                      onChange={(e) => setWebhookUrl(e.target.value)}
-                      className="mt-1 w-full rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs text-stone-900 focus:border-stone-900 focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    disabled={isPublishing}
-                    onClick={handleSimulatePublish}
-                    className="flex items-center gap-2 rounded-xl bg-stone-900 px-5 py-2.5 text-xs font-semibold text-white hover:bg-stone-800 disabled:opacity-60"
-                  >
-                    {isPublishing ? (
-                      <>
-                        <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                        <span>웹훅 디스패치 실행 중...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Send className="h-3.5 w-3.5" />
-                        <span>자동 발행 시뮬레이션 전송 (Dispatch)</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Publish Result Log */}
-              {publishResult && (
-                <div
-                  className={`rounded-xl border p-4 text-xs space-y-2 ${
-                    publishResult.success
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-900'
-                      : 'border-rose-200 bg-rose-50 text-rose-900'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 font-bold">
-                    {publishResult.success ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 text-rose-600" />
-                    )}
-                    <span>{publishResult.message}</span>
-                  </div>
-
-                  {publishResult.published_id && (
-                    <div className="font-mono text-[11px] pt-1">
-                      생성된 외부 포스트 ID: {publishResult.published_id} | 발행 일시: {publishResult.published_at}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Modal Footer */}
