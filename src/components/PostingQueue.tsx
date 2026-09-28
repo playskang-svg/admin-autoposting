@@ -32,8 +32,10 @@ export const PostingQueue: React.FC<PostingQueueProps> = ({
   const [statusFilter, setStatusFilter] = useState<'all' | QueueStatus>('ready');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Auto-publish logic
+  // Auto-publish logic — 2026-09-28 사용자 요청으로 자동 발행 완전 중지. 재개하려면 true 로 바꾼다.
+  const AUTO_PUBLISH_ENABLED = false;
   useEffect(() => {
+    if (!AUTO_PUBLISH_ENABLED) return;
     const interval = setInterval(() => {
       queueItems.forEach(item => {
         if (item.queue_status === 'ready' && item.auto_publish && item.schedule_minutes && item.schedule_minutes > 0) {
